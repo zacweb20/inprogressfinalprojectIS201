@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playmaker Rush</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #4caf50, #8bc34a);
+        }
+
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #game-over button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #game-over button:hover {
+            background-color: #ddd;
+        }
+
+        #high-score {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-over">
+        <h1>Game Over</h1>
+        <p id="timer-result"></p>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+    <div id="high-score">High Score: 0</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            width: 50,
+            height: 50,
+            color: "#f57f17",
+            dx: 0,
+            dy: 0
+        };
+
+        const obstacles = [];
+        const dots = [];
+        let score = 0;
+        let highScore = 0;
+        const obstacleFrequency = 50;
+        const dotFrequency = 50;
+        let frame = 0;
+        let timer = 0;
+        let timerInterval;
+        let gameOver = false;
+
+        const highScoreElement = document.getElementById("high-score");
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timer += 1;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function createObstacle() {
+            if (frame % obstacleFrequency === 0) {
+                const width = Math.random() * 50 + 30;
+                const x = Math.random() * (canvas.width - width);
+                obstacles.push({ x, y: -50, width, height: 50, color: "#d32f2f" });
+            }
+        }
+
+        function drawObstacles() {
+            obstacles.forEach((obstacle) => {
+                ctx.fillStyle = obstacle.color;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        function moveObstacles() {
+            obstacles.forEach((obstacle) => {
+                obstacle.y += 8; // Increase speed of obstacles
+            });
+        }
+
+        function detectCollision() {
+            obstacles.forEach((obstacle) => {
+                if (
+                    player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y
+                ) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        function createDot() {
+            if (dots.length === 0) {
+                const x = Math.random() * (canvas.width - 10);
+                const y = Math.random() * (canvas.height - 10);
+                dots.push({ x, y, size: 10, color: "#ffeb3b" });
+            }
+        }
+
+        function drawDots() {
+            dots.forEach((dot) => {
+                ctx.fillStyle = dot.color;
+                ctx.beginPath();
+                ctx.arc(dot.x, dot.y, dot.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function collectDots() {
+            for (let i = dots.length - 1; i >= 0; i--) {
+                const dot = dots[i];
+                if (
+                    player.x < dot.x + dot.size &&
+                    player.x + player.width > dot.x &&
+                    player.y < dot.y + dot.size &&
+                    player.y + player.height > dot.y
+                ) {
+                    dots.splice(i, 1);
+                    score += 1;
+                }
+            }
+        }
+
+        function drawScore() {
+            ctx.fillStyle = "white";
+            ctx.font = "24px Arial";
+            ctx.fillText(`Score: ${score}`, canvas.width - 120, 30);
+        }
+
+        function drawTimer() {
+            ctx.fillStyle = "white";
+            ctx.font = "24px Arial";
+            ctx.fillText(`Time: ${timer}s`, 10, 30);
+        }
+
+        function update() {
+            if (gameOver) {
+                stopTimer();
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElement.innerText = `High Score: ${highScore}`;
+                }
+                document.getElementById("timer-result").innerText = `You lasted ${timer} seconds with a score of ${score}!`;
+                document.getElementById("game-over").style.display = "block";
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            createObstacle();
+            drawObstacles();
+            moveObstacles();
+            detectCollision();
+            createDot();
+            drawDots();
+            collectDots();
+            drawTimer();
+            drawScore();
+
+            player.x += player.dx;
+            player.y += player.dy;
+
+            // Prevent the player from leaving the canvas
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y < 0) player.y = 0;
+            if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+            frame++;
+
+            requestAnimationFrame(update);
+        }
+
+        function restartGame() {
+            document.getElementById("game-over").style.display = "none";
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            obstacles.length = 0;
+            dots.length = 0;
+            frame = 0;
+            timer = 0;
+            score = 0;
+            gameOver = false;
+            startTimer();
+            update();
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") player.dx = -5;
+            if (e.key === "ArrowRight") player.dx = 5;
+            if (e.key === "ArrowUp") player.dy = -5;
+            if (e.key === "ArrowDown") player.dy = 5;
+        });
+
+        document.addEventListener("keyup", (e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") player.dx = 0;
+            if (e.key === "ArrowUp" || e.key === "ArrowDown") player.dy = 0;
+        });
+
+        startTimer();
+        update();
+    </script>
+</body>
+</html>
